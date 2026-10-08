@@ -1,0 +1,52 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASS}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  wordpress:
+    image: wordpress:php8.2-apache
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WP_PORT}:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASS}
+    volumes:
+      - wp_data:/var/www/html
+
+  wpcli:
+    image: wordpress:cli-php8.2
+    restart: unless-stopped
+    depends_on:
+      wordpress:
+        condition: service_started
+    user: "33:33"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASS}
+    volumes:
+      - wp_data:/var/www/html
+    entrypoint: ["tail", "-f", "/dev/null"]
+
+volumes:
+  db_data:
+  wp_data:
